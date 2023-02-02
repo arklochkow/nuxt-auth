@@ -13,7 +13,7 @@ import type {
   SessionLastRefreshedAt,
   SessionStatus
 } from './useSessionState'
-import { createError, useNuxtApp, useRuntimeConfig, useRequestHeaders } from '#imports'
+import { createError, useNuxtApp, useRuntimeConfig, useRequestHeaders, appendHeader } from '#imports'
 
 /**
  * Utility type that allows autocompletion for a mix of literal, primitiva and non-primitive values.
@@ -203,6 +203,16 @@ const getSession = async (getSessionOptions?: GetSessionOptions) => {
   return _fetch<SessionData>(nuxt, 'session', {
     onResponse: ({ response }) => {
       const sessionData = response._data
+
+      // Pass the new cookie to the server side request
+      if (process.server) {
+        if (response.headers.get('set-cookie')) {
+          const setCookieValue = String(response.headers.get('set-cookie'))
+          if (nuxt.ssrContext) {
+            appendHeader(nuxt.ssrContext.event, 'set-cookie', setCookieValue)
+          }
+        }
+      }
 
       data.value = isNonEmptyObject(sessionData) ? sessionData : null
       loading.value = false
